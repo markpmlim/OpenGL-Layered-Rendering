@@ -217,5 +217,4 @@ https://discourse.libcinder.org/t/single-pass-cubemap-solved/1299
 
 https://community.khronos.org/t/glgetteximage-and-cube-maps/43311
 
-https://community.khronos.org/t/output-cubemap-texture-object-as-bitmap-images/75445
 
