@@ -28,15 +28,11 @@ BOOL imagesFromCubemap(GLuint cubemapTextureID,
     const size_t kSrcChannelCount = 4;
     const size_t bytesPerRow = width*kSrcChannelCount*sizeof(GLfloat);
     size_t dataSize = bytesPerRow*height;
+    void *data[6];
 
-    void *front = malloc(dataSize);
-    void *back = malloc(dataSize);
-
-    void *top = malloc(dataSize);
-    void *bottom = malloc(dataSize);
-
-    void *left = malloc(dataSize);
-    void *right = malloc(dataSize);
+    for (unsigned int i=0; i<6; i++) {
+        data[i] = malloc(dataSize);
+    }
 
     GLuint carrierTexture;
     GLuint carrierFBO;
@@ -50,6 +46,76 @@ BOOL imagesFromCubemap(GLuint cubemapTextureID,
     glBindFramebuffer(GL_READ_FRAMEBUFFER, carrierFBO);
     GetGLError()
 
+    for (unsigned int i=0; i<6; i++) {
+        // The first parameter should be GL_READ_FRAMEBUFFER not GL_FRAMEBUFFER
+        glFramebufferTexture2D(GL_READ_FRAMEBUFFER,                 // target
+                               GL_COLOR_ATTACHMENT0,                // attachment
+                               GL_TEXTURE_CUBE_MAP_POSITIVE_X+i,    //texturetarget
+                               cubemapTextureID,                    // texture ID
+                               0);                                  // level
+        GetGLError()
+        // Copy pixels from the current read framebuffer (carrierFBO) into the texture
+        // currently bound to target of the active texture unit (carrierTexture)
+        glCopyTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i,      // target
+                         0,                                     // level
+                         GL_RGBA,                               // internal format
+                         0, 0,                                  // x, y
+                         width, height,                         // width, height
+                         0);                                    // border
+        GetGLError()
+        glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X,           // target
+                      0,                                        // level
+                      GL_RGBA,                                  // format
+                      GL_FLOAT,                                 // type
+                      data[i]);                                 // pointer to a client memory block
+                                                                //  where image data is placed
+        GetGLError()
+
+    }
+
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glDeleteFramebuffers(1,&carrierFBO);
+    glDeleteTextures(1, &carrierTexture);
+
+    // Recover the memory
+    for (unsigned int i=0; i<6; i++) {
+        free(data[i]);
+    }
+
+    GetGLError()
+
+    return YES;
+}
+
+BOOL imagesFromCubemap2(GLuint cubemapTextureID,
+                       GLint width, GLint height)
+{
+    const size_t kSrcChannelCount = 4;
+    const size_t bytesPerRow = width*kSrcChannelCount*sizeof(GLfloat);
+    size_t dataSize = bytesPerRow*height;
+    
+    void *front = malloc(dataSize);
+    void *back = malloc(dataSize);
+    
+    void *top = malloc(dataSize);
+    void *bottom = malloc(dataSize);
+    
+    void *left = malloc(dataSize);
+    void *right = malloc(dataSize);
+    
+    GLuint carrierTexture;
+    GLuint carrierFBO;
+    
+    glGenTextures(1, &carrierTexture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, carrierTexture);
+    
+    glGenFramebuffers(1, &carrierFBO);
+    // The first parameter should be GL_READ_FRAMEBUFFER not GL_FRAMEBUFFER
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, carrierFBO);
+    GetGLError()
+    
     // The first parameter should be GL_READ_FRAMEBUFFER not GL_FRAMEBUFFER
     glFramebufferTexture2D(GL_READ_FRAMEBUFFER,             // target
                            GL_COLOR_ATTACHMENT0,            // attachment
@@ -71,15 +137,15 @@ BOOL imagesFromCubemap(GLuint cubemapTextureID,
                   GL_RGBA,                                  // format
                   GL_FLOAT,                                 // type
                   right);                                   // pointer to a client memory block
-                                                            //  where image data is placed
+    //  where image data is placed
     GetGLError()
-
+    
     glFramebufferTexture2D(GL_READ_FRAMEBUFFER,
                            GL_COLOR_ATTACHMENT0,
                            GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
                            cubemapTextureID,
                            0);
-
+    
     glCopyTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
                      0,
                      GL_RGBA,                           // internal format
@@ -95,7 +161,7 @@ BOOL imagesFromCubemap(GLuint cubemapTextureID,
                   GL_FLOAT,
                   left);
     GetGLError()
-
+    
     glFramebufferTexture2D(GL_READ_FRAMEBUFFER,
                            GL_COLOR_ATTACHMENT0,
                            GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
@@ -130,7 +196,7 @@ BOOL imagesFromCubemap(GLuint cubemapTextureID,
                   GL_RGBA,                              // format
                   GL_FLOAT,
                   bottom);
-
+    
     glFramebufferTexture2D(GL_READ_FRAMEBUFFER,
                            GL_COLOR_ATTACHMENT0,
                            GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
@@ -147,7 +213,7 @@ BOOL imagesFromCubemap(GLuint cubemapTextureID,
                   GL_RGBA,                              // format
                   GL_FLOAT,
                   front);
-
+    
     glFramebufferTexture2D(GL_READ_FRAMEBUFFER,
                            GL_COLOR_ATTACHMENT0,
                            GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
@@ -164,12 +230,12 @@ BOOL imagesFromCubemap(GLuint cubemapTextureID,
                   GL_RGBA,                              // format
                   GL_FLOAT,
                   back);
-
+    
     glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
     glDeleteFramebuffers(1,&carrierFBO);
     glDeleteTextures(1, &carrierTexture);
-
+    
     // Recover the memory
     free(right);
     free(left);
@@ -178,6 +244,6 @@ BOOL imagesFromCubemap(GLuint cubemapTextureID,
     free(top);
     free(bottom);
     GetGLError()
-
+    
     return YES;
 }
