@@ -291,24 +291,27 @@ static CVReturn OpenGLDisplayLinkCallback(CVDisplayLinkRef displayLink,
     bits += _cbits;
 
     printf("# of bits per pixel:%d\n", bits);
-    //imagesFromCubemap(textureName, width, height);
-    //glActiveTexture(GL_TEXTURE0);
-    //glBindTexture(GL_TEXTURE_CUBE_MAP, textureName);
+    imagesFromCubemap(textureName, width, height);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureName);
 
     if (_saveAsHDR == YES) {
+        // The call stbi_write_hdr() outputs 3 Floats/pixel
+        // Therefore, each pixel is 3x4 = 12 bytes and not 3x2 = 6 bytes
+        // The OpenGL call below glGetTexImage() returns each pixel
+        //  as a GL_FLOAT (GLfloat) not a GL_HALF_FLOAT (GLhalf).
+        // Apple's OpenGL interfaces define the type GLhalf to be uint16_t.
         const size_t kSrcChannelCount = 3;
-        // Note: each pixel is 4x4 = 12 bytes and not 4x2 = 8 bytes
-        //  because OpenGL returns each pixel as a GLfloat not a half GLfloat.
         const size_t bytesPerRow = width*kSrcChannelCount*sizeof(GLfloat);
         size_t dataSize = bytesPerRow*height;
         void *srcData = malloc(dataSize);
         BOOL isOK = YES;                    // Expect no errors
 
-        // The size of ".hdr" files are usually bigger than other graphic types.
+        // The size of ".hdr" files is usually bigger than other graphic types.
         // Create and allocate space for a new Pixel Buffer Object (pbo)
         GLuint  pbo;
         glGenBuffers(1, &pbo);
-        // Bind the newly-created buffer object (pbo) to initialise it.
+        // Bind the newly-created pixel buffer object (pbo) to initialise it.
         glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
         // NULL means allocate GPU memory to the PBO.
         // GL_STREAM_READ is a hint indicating the PBO will stream a texture download
@@ -321,15 +324,15 @@ static CVReturn OpenGLDisplayLinkCallback(CVDisplayLinkRef displayLink,
             NSString* filename = [NSString stringWithFormat:@"%@%02x.hdr", basename, i];
             NSURL* fileURL = [directoryURL URLByAppendingPathComponent:filename];
             const char *filePath = [fileURL fileSystemRepresentation];
-            // The parameters "format" and "type" are the pixel format
+            // The parameters `format` and `type` are the pixel format
             //  and type of the desired data
-            // Transfer texture into PBO
+            // Transfer texture into PBO.
             glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, // target
                           0,                                // level of detail
                           GL_RGB,                           // format
-                          GL_FLOAT,                         // type
+                          GL_FLOAT,                         // type (can this be GL_HALF_FLOAT?)
                           NULL);
-
+            GetGLError();
             // We are going to read data from the PBO. The call will only return when
             //  the GPU finishes its work with the buffer object.
             void *mappedPtr = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
