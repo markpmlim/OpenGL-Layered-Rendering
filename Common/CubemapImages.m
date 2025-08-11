@@ -63,14 +63,13 @@ BOOL imagesFromCubemap(GLuint cubemapTextureID,
                          width, height,                         // width, height
                          0);                                    // border
         GetGLError()
-        glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X,           // target
+        glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i,         // target
                       0,                                        // level
                       GL_RGBA,                                  // format
                       GL_FLOAT,                                 // type
                       data[i]);                                 // pointer to a client memory block
                                                                 //  where image data is placed
         GetGLError()
-
     }
 
     glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
