@@ -47,7 +47,7 @@
 
     [_quadRenderer resize:self.drawableSize];
 
-    _saveAsHDR = NO;
+    _saveAsHDR = YES;
 }
 
 
@@ -246,6 +246,9 @@ static CVReturn OpenGLDisplayLinkCallback(CVDisplayLinkRef displayLink,
  
  If the basename is "image", then the 6 filenames are constructed as:
  "image00", "image01", "image02", "image03", "image04", "image05"
+ 
+ Note: Apple's OpenGL Profile displayed the six 2D images are flipped vertically.
+ In OpenGL, Pixel (0,0) is at the bottom left corner of a 2D image.
  */
 - (BOOL)saveTextures:(GLuint)textureName
         withBasename:(NSString *)basename
@@ -292,15 +295,18 @@ static CVReturn OpenGLDisplayLinkCallback(CVDisplayLinkRef displayLink,
     bits += _cbits;
 
     printf("# of bits per pixel:%d\n", bits);
-    //imagesFromCubemap(textureName, width, height);
+    imagesFromCubemap(textureName, width, height);
     // The following 2 functions must be called
-    //glActiveTexture(GL_TEXTURE0);
-    //glBindTexture(GL_TEXTURE_CUBE_MAP, textureName);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureName);
 
     if (_saveAsHDR == YES) {
+        // The call stbi_write_hdr() outputs 3 Floats/pixel
+        // Therefore, each pixel is 3x4 = 12 bytes and not 3x2 = 6 bytes
+        // The OpenGL call below glGetTexImage() returns each pixel
+        //  as a GL_FLOAT (GLfloat) not a GL_HALF_FLOAT (GLhalf).
+        // Apple's OpenGL interfaces define the type GLhalf to be uint16_t.
         const size_t kSrcChannelCount = 3;
-        // Note: each pixel is 4x4 = 12 bytes and not 4x2 = 8 bytes
-        //  because OpenGL returns each pixel as a GLfloat not a half GLfloat.
         const size_t bytesPerRow = width*kSrcChannelCount*sizeof(GLfloat);
         size_t dataSize = bytesPerRow*height;
         void *srcData = malloc(dataSize);
@@ -310,7 +316,7 @@ static CVReturn OpenGLDisplayLinkCallback(CVDisplayLinkRef displayLink,
         // Create and allocate space for a new Pixel Buffer Object (pbo)
         GLuint  pbo;
         glGenBuffers(1, &pbo);
-        // Bind the newly-created buffer object (pbo) to initialise it.
+        // Bind the newly-created pixel buffer object (pbo) to initialise it.
         glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
         // NULL means allocate GPU memory to the PBO.
         // GL_STREAM_READ is a hint indicating the PBO will stream a texture download
@@ -329,7 +335,7 @@ static CVReturn OpenGLDisplayLinkCallback(CVDisplayLinkRef displayLink,
             glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, // target
                           0,                                // level of detail
                           GL_RGB,                           // format
-                          GL_FLOAT,                         // type
+                          GL_FLOAT,                         // type (can this be GL_HALF_FLOAT?)
                           NULL);
 
             // We are going to read data from the PBO. The call will only return when
